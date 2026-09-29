@@ -1,5 +1,9 @@
 # dsh-plugin-rtl-text
 
+[![npm version](https://img.shields.io/npm/v/dsh-plugin-rtl-text.svg)](https://www.npmjs.com/package/dsh-plugin-rtl-text)
+[![license](https://img.shields.io/npm/l/dsh-plugin-rtl-text.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-MojtabaFaraji%2Fdsh--plugin--rtl--text-blue?logo=github)](https://github.com/MojtabaFaraji/dsh-plugin-rtl-text)
+
 A DeepSeek Harness (Cordis) plugin that fixes mixed right-to-left / left-to-right text rendering in chat messages on the Web and Desktop GUI.
 
 When a reply mixes Persian or Arabic with English words, code, or numbers, an LTR page reorders the line: sentences read backwards, punctuation attaches to the wrong side, list numbers and bullets stay on the left edge, and quote bars sit on the wrong side. This plugin gives every chat block a direction computed from its own content — without changing a single character of message text.
@@ -149,7 +153,7 @@ Three different files share this name:
 | Symptom | What to do |
 |---------|-----------|
 | Installed and reloaded, but nothing changed | Remount first (plugin page: off → on, or restart the host), *then* reload. Rows are collected from the live mounted plugin at page load. |
-| One sentence still has the wrong direction | Heuristic limit: a nearly balanced bilingual sentence falls back to its first strong character. Open an issue with the exact sentence. |
+| One sentence still has the wrong direction | Heuristic limit: a nearly balanced bilingual sentence falls back to its first strong character. [Open an issue](https://github.com/MojtabaFaraji/dsh-plugin-rtl-text/issues) with the exact sentence. |
 | List numbers or bullets still on the left | Confirm the reload followed the remount. If your Harness version renamed the chat row attributes, the selector needs a matching update (see [Compatibility](#compatibility)). |
 | You want it off | Set `enabled: false` as shown in [Configuration](#configuration). |
 
@@ -192,7 +196,7 @@ The package has no runtime dependencies, so a `pnpm install` of this package alo
 2. Inspect the tarball: `npm pack --dry-run` — expect `lib/index.js`, `lib/index.d.ts`, `cordis.patch.yml`, `README.md`, `CHANGELOG.md`, and `LICENSE`.
 3. Bump `version` and add an entry to [CHANGELOG.md](CHANGELOG.md).
 4. `npm login` then `npm publish` — `prepublishOnly` rebuilds `lib/` automatically.
-5. Push to GitHub: the repository commits `lib/` on purpose so a plain clone works without the Harness toolchain; `.gitignore` excludes only `node_modules/`, tarballs, and logs.
+5. Push to GitHub ([MojtabaFaraji/dsh-plugin-rtl-text](https://github.com/MojtabaFaraji/dsh-plugin-rtl-text)): the repository commits `lib/` on purpose so a plain clone works without the Harness toolchain; `.gitignore` excludes only `node_modules/`, local npm caches, tarballs, and logs.
 
 ## Package contents
 

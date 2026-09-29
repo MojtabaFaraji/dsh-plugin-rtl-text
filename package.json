@@ -15,6 +15,14 @@
     "persian",
     "unicode-bidi"
   ],
+  "homepage": "https://github.com/MojtabaFaraji/dsh-plugin-rtl-text#readme",
+  "bugs": {
+    "url": "https://github.com/MojtabaFaraji/dsh-plugin-rtl-text/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MojtabaFaraji/dsh-plugin-rtl-text.git"
+  },
   "author": "Mojtaba Faraji",
   "license": "MIT",
   "type": "module",
