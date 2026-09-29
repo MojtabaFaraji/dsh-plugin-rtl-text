@@ -1,0 +1,13 @@
+# dsh-plugin-rtl-text profile layer: contributes bidi-fix style and script
+# rows to index.html so chat paragraphs take their direction from their own
+# text (first-strong default; RTL pin for Latin-led blocks whose RTL
+# characters outnumber the Latin ones, and for chat-scoped ul/ol/blockquote
+# containers so markers and quote bars follow their text).
+# A profile adopts this layer when the plugin manager installs the package
+# (GUI "Add plugin" or `dsh plugin --profile <name> add <path>`), which
+# appends the package name to dsh.profile.bundles.
+- insert:
+    - id: rtl-text
+      name: dsh-plugin-rtl-text
+      config:
+        enabled: true

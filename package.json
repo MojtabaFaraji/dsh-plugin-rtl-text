@@ -1,0 +1,52 @@
+{
+  "name": "dsh-plugin-rtl-text",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin that fixes RTL/LTR bidi rendering in chat: per-block direction for Persian and Arabic messages with embedded English, plus list markers and quote bars that follow their text",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "deepseek",
+    "plugin",
+    "cordis",
+    "rtl",
+    "bidi",
+    "right-to-left",
+    "arabic",
+    "persian",
+    "unicode-bidi"
+  ],
+  "author": "Mojtaba Faraji",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": "^22.19 || >=24"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "node tests/apply.test.mjs",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  }
+}
