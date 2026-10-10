@@ -86,6 +86,9 @@ const CODE_BLOCK = 'const age = 3; // روز جاری';
 // Persian letters, but the sentences close Persian (reported).
 const BULLET_README = 'README.md: دو بخش جدید در «What it fixes»، بخش جدید «Inline code, links, and code blocks» در How it works، اصلاح بخش Code blocks در «What it does not change»، و پوشش تست‌های جدید.';
 const BULLET_CHANGELOG = 'CHANGELOG.md: دو بند جدید در 0.1.0.';
+// Arabic-Indic digits are weak in Unicode; the RTL ranges exclude them so
+// this digit-led Persian sentence pins RTL through the majority rule (reported).
+const DIGIT_LED = '۱. push به GitHub: تلاش من دو بار به‌دلیلِ عدم دسترسیِ sandbox به credential helper های git شکست خورد (و approval هم پاسخ نگرفت)، پس مخزن هنوز ahead 1 است:';
 
 describe('dsh-plugin-rtl-text on a real Cordis context', () => {
   it('appends style and script rows when the webserver collects injections', async () => {
@@ -158,6 +161,16 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
     assert.equal(numberedList.style.unicodeBidi, 'isolate');
     assert.equal(quote.attrs.dir, 'rtl', 'quote containers move their bar to the right');
     assert.equal(englishList.attrs.dir, undefined, 'English lists stay on the left');
+  });
+
+  it('treats Arabic-Indic digits as weak, so digit-led Persian pins RTL', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const harness = scriptHarness(scriptText, [DIGIT_LED]);
+    harness.run();
+
+    assert.equal(harness.elements[0].attrs.dir, 'rtl', 'the leading ۱ is weak, so the first strong character is Latin and the RTL majority pins the block');
+    assert.equal(harness.elements[0].style.unicodeBidi, 'isolate');
   });
 
   it('keeps file-labeled Persian lists RTL through the last-strong clause', async () => {

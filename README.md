@@ -36,6 +36,7 @@ When a reply mixes Persian or Arabic with English words, code, or numbers, an LT
 - Inline code with mixed content (`<code>newest=2026-10-07, age=3 روز</code>`): the span is isolated with its own majority direction, so `=`, `-`, `,`, parentheses, and brackets inside code stop rearranging against the paragraph.
 - Code blocks keep their structure: `pre` is pinned to LTR with isolation, so an RTL context can never scramble code — Persian comments inside render as RTL runs.
 - File-labeled Persian bullets (`README.md: دو بخش جدید …`): the Latin label opens and even outweighs the Persian letters, but the sentence closes Persian — the last-strong rule keeps the list RTL with its bullets on the right.
+- Digit-led Persian sentences (`۱. push به GitHub: …`): Arabic-Indic digits are weak in Unicode, so the script skips them exactly like the stylesheet — the sentence pins RTL through its Persian majority instead of starting LTR and scrambling.
 - Existing history as well as live replies: the fix is one stylesheet row and one script, so every already-loaded conversation benefits immediately — no re-streaming.
 
 ## What it does not change
@@ -113,7 +114,7 @@ Sentences that open in their dominant language resolve correctly with no script 
 
 ### The `script` row: Latin-led Persian sentences
 
-First-strong alone reads `build سبز + ۴ تست پاس` as LTR because it opens with English. When a text block opens LTR yet strong RTL characters (Hebrew/Arabic blocks, including Arabic punctuation and diacritics) outnumber strong LTR ones (Latin/Greek/Cyrillic), the script pins `dir="rtl"` with an inline `unicode-bidi: isolate` so the explicit direction wins over the stylesheet. Sentences that open Persian are never pinned — technical Latin tokens such as `renderIndexInjections` must not flip `سطح رندر: تابع واقعی …` to LTR, so first-strong keeps them RTL. A sentence that opens with a Latin label yet closes Persian (`README.md: دو بخش جدید …`) is authored Persian: blocks and lists whose last strong character is Persian are pinned RTL too.
+First-strong alone reads `build سبز + ۴ تست پاس` as LTR because it opens with English. When a text block opens LTR yet strong RTL characters (Hebrew/Arabic blocks, including Arabic punctuation and diacritics) outnumber strong LTR ones (Latin/Greek/Cyrillic), the script pins `dir="rtl"` with an inline `unicode-bidi: isolate` so the explicit direction wins over the stylesheet. Sentences that open Persian are never pinned — technical Latin tokens such as `renderIndexInjections` must not flip `سطح رندر: تابع واقعی …` to LTR, so first-strong keeps them RTL. A sentence that opens with a Latin label yet closes Persian (`README.md: دو بخش جدید …`) is authored Persian: blocks and lists whose last strong character is Persian are pinned RTL too. Arabic-Indic and Persian digits (`۰`–`۹`) are numbers, not strong characters — the RTL ranges exclude them, so a `۱.`-led item is read exactly as `unicode-bidi: plaintext` reads it and still pins RTL through the majority rule.
 
 ### Container direction: list numbers, bullets, quote bars
 

@@ -52,6 +52,11 @@ const BIDI_CSS = `${SCOPE} :is(${BLOCKS}){unicode-bidi:plaintext}`;
  * closes Persian — a sentence ends in the language it was authored in, so
  * text blocks and lists that open LTR yet close RTL are pinned RTL too.
  *
+ * Weak digits: Arabic-Indic and Persian digits (U+0660–U+0669, U+06F0–U+06F9)
+ * are numbers, not strong characters, so the RTL ranges exclude them — a
+ * `۱.`-led Persian item is read exactly as `unicode-bidi: plaintext` reads
+ * it (first strong character) and pins RTL through the majority rule.
+ *
  * Inline runs: `=`, `-`, `,`, parentheses, and brackets are neutral
  * characters that resolve against the surrounding paragraph, so an inline
  * `code` span such as `newest=2026-10-07, age=3 روز` interleaves inside an
@@ -76,10 +81,11 @@ const BIDI_SCRIPT = `(function () {
   var inlines = scope + ' code,' + scope + ' kbd,' + scope + ' samp,' + scope + ' var,' + scope + ' a';
   var pres = scope + ' pre,' + scope + ' pre code';
   var all = scoped + ',' + lists + ',' + inlines + ',' + pres;
-  var rtlChars = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g;
+  // Arabic-Indic and Persian digits (۰-۹) are weak, not strong: excluded like ASCII digits.
+  var rtlChars = /[\u0590-\u05FF\u0600-\u065F\u066A-\u06EF\u06FA-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g;
   var ltrChars = /[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/gu;
-  var strongTest = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/u;
-  var rtlTest = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+  var strongTest = /[\u0590-\u05FF\u0600-\u065F\u066A-\u06EF\u06FA-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/u;
+  var rtlTest = /[\u0590-\u05FF\u0600-\u065F\u066A-\u06EF\u06FA-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
   var ltrTest = /[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/u;
   function firstStrongSide(text) {
     var index = text.search(strongTest);
