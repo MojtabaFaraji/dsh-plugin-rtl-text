@@ -33,13 +33,16 @@ When a reply mixes Persian or Arabic with English words, code, or numbers, an LT
 - English-led Persian sentences (`build سبز + ۴ تست پاس …`) that a first-character heuristic would read as LTR.
 - Sentences that open Persian but contain many Latin technical tokens (`سطح رندر: تابع واقعی renderIndexInjections …`) — they are never flipped to LTR.
 - List markers and quote bars: `ol` numbers, `ul` bullets, and `blockquote` bars move to the right together with their content.
+- Inline code with mixed content (`<code>newest=2026-10-07, age=3 روز</code>`): the span is isolated with its own majority direction, so `=`, `-`, `,`, parentheses, and brackets inside code stop rearranging against the paragraph.
+- Code blocks keep their structure: `pre` is pinned to LTR with isolation, so an RTL context can never scramble code — Persian comments inside render as RTL runs.
+- File-labeled Persian bullets (`README.md: دو بخش جدید …`): the Latin label opens and even outweighs the Persian letters, but the sentence closes Persian — the last-strong rule keeps the list RTL with its bullets on the right.
 - Existing history as well as live replies: the fix is one stylesheet row and one script, so every already-loaded conversation benefits immediately — no re-streaming.
 
 ## What it does not change
 
 - **Message text.** The durable session log, model history, and CLI output stay byte-identical; the plugin only touches presentation.
 - **Other profiles.** Headless and TUI profiles have no GUI to style — the injected rows are never collected there and the plugin is a harmless no-op.
-- **Code blocks.** `pre` blocks are deliberately out of scope and render as authored.
+- **Code block content.** `pre` keeps its authored LTR order (it is pinned, never rewritten) — only its `direction` context is fixed.
 
 ## Installation
 
@@ -110,11 +113,15 @@ Sentences that open in their dominant language resolve correctly with no script 
 
 ### The `script` row: Latin-led Persian sentences
 
-First-strong alone reads `build سبز + ۴ تست پاس` as LTR because it opens with English. When a text block opens LTR yet strong RTL characters (Hebrew/Arabic blocks, including Arabic punctuation and diacritics) outnumber strong LTR ones (Latin/Greek/Cyrillic), the script pins `dir="rtl"` with an inline `unicode-bidi: isolate` so the explicit direction wins over the stylesheet. Sentences that open Persian are never pinned — technical Latin tokens such as `renderIndexInjections` must not flip `سطح رندر: تابع واقعی …` to LTR, so first-strong keeps them RTL.
+First-strong alone reads `build سبز + ۴ تست پاس` as LTR because it opens with English. When a text block opens LTR yet strong RTL characters (Hebrew/Arabic blocks, including Arabic punctuation and diacritics) outnumber strong LTR ones (Latin/Greek/Cyrillic), the script pins `dir="rtl"` with an inline `unicode-bidi: isolate` so the explicit direction wins over the stylesheet. Sentences that open Persian are never pinned — technical Latin tokens such as `renderIndexInjections` must not flip `سطح رندر: تابع واقعی …` to LTR, so first-strong keeps them RTL. A sentence that opens with a Latin label yet closes Persian (`README.md: دو بخش جدید …`) is authored Persian: blocks and lists whose last strong character is Persian are pinned RTL too.
 
 ### Container direction: list numbers, bullets, quote bars
 
-Markers follow the container's own `direction` property, which `unicode-bidi: plaintext` on the inner text cannot change — on an LTR page they would stay on the left edge. For chat-scoped `ul`, `ol`, and `blockquote` the script applies the full rule (first-strong RTL, or RTL majority regardless of the opening character) and pins an inline `direction: rtl`, so a list opening `1. اولین مورد …` keeps its numbers on the right with the text. English lists stay left.
+Markers follow the container's own `direction` property, which `unicode-bidi: plaintext` on the inner text cannot change — on an LTR page they would stay on the left edge. For chat-scoped `ul`, `ol`, and `blockquote` the script applies the full rule (RTL when the text opens Persian, closes Persian, or holds an RTL majority) and pins an inline `direction: rtl`, so a list opening `1. اولین مورد …` keeps its numbers on the right with the text. English lists stay left.
+
+### Inline code, links, and code blocks
+
+`=`, `-`, `,`, `(`, `)` and `[` are neutral characters: inside a paragraph they take their direction from the surrounding text, which is exactly why `newest=2026-10-07, age=3 روز` scrambled in RTL context. Chat-scoped `code`, `kbd`, `samp`, `var`, and `a` therefore take their **own majority direction** (ties fall back to first-strong) with an inline `unicode-bidi: isolate` — each becomes one coherent island whose symbols stay where they were written, and nested Persian inside Latin-majority code still renders RTL. Code blocks (`pre` and `pre code`) are pinned to `dir="ltr"` so code structure never inherits an RTL direction from a pinned ancestor. Symbols in plain text outside any element follow the paragraph direction the plugin computes; if one still looks wrong, open an issue with the exact sentence.
 
 A `MutationObserver` reapplies every decision as streaming text grows, removes a stale pin when the text no longer qualifies, and watches text and child mutations only — attribute writes never loop.
 
@@ -178,7 +185,7 @@ Page direction LTR:
 pnpm run test   # node:test suite against a real Cordis Context
 ```
 
-The suite covers both injection rows (preserving other rows, never emitting `</script`), the pinning rules against both reported failure directions (English-led Persian forced RTL; Persian-led Latin-heavy left to first-strong), container pinning for lists and quotes (numbers, bullets, quote bars), stale-pin removal, the `enabled: false` configuration, listener unwind on `fiber.dispose()`, and two-rows-per-collection semantics.
+The suite covers both injection rows (preserving other rows, never emitting `</script`), the pinning rules against both reported failure directions (English-led Persian forced RTL; Persian-led Latin-heavy left to first-strong), container pinning for lists and quotes (numbers, bullets, quote bars); inline-code isolation against the reported `newest=2026-10-07, age=3 روز` case; LTR code-block pinning; last-strong pinning for file-labeled Persian bullets; stale-pin removal, the `enabled: false` configuration, listener unwind on `fiber.dispose()`, and two-rows-per-collection semantics.
 
 ## Building from source
 

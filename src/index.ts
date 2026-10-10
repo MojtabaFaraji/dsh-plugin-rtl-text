@@ -24,63 +24,109 @@ const BLOCKS = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,dd,dt,td,th,figcaption';
  * Default direction for every text block: each paragraph takes its
  * direction from its first strong character (`unicode-bidi: plaintext`).
  * Sentences that open in their dominant language resolve correctly with no
- * script at all; the injected script only overrides the known failure case
+ * script at all; the injected script only overrides the known failure cases
  * and pins the containers whose markers follow their own direction.
  */
 const BIDI_CSS = `${SCOPE} :is(${BLOCKS}){unicode-bidi:plaintext}`;
 
 /**
- * Page-side overrides for the two cases the stylesheet cannot resolve.
+ * Page-side overrides for the cases the stylesheet cannot resolve.
  *
- * First, Latin-led Persian sentences: first-strong reads
- * `build سبز + ۴ تست پاس` as LTR because it opens with English, so when a
- * text block opens LTR yet strong RTL characters (Hebrew/Arabic blocks,
- * including Arabic punctuation and diacritics) outnumber strong LTR ones
- * (Latin/Greek/Cyrillic), the script pins `dir="rtl"` with an inline
- * `unicode-bidi: isolate` so the explicit direction wins over the
- * stylesheet's `plaintext`. Sentences that open Persian are never pinned:
- * technical Latin tokens such as `renderIndexInjections` must not flip
- * `سطح رندر: تابع واقعی …` to LTR.
+ * Latin-led Persian sentences: first-strong reads `build سبز + ۴ تست پاس` as
+ * LTR because it opens with English, so when a text block opens LTR yet
+ * strong RTL characters (Hebrew/Arabic blocks, including Arabic
+ * punctuation and diacritics) outnumber strong LTR ones
+ * (Latin/Greek/Cyrillic), the script pins `dir="rtl"`. Sentences that open
+ * Persian are never pinned: technical Latin tokens such as
+ * `renderIndexInjections` must not flip `سطح رندر: تابع واقعی …` to LTR.
  *
- * Second, container direction: list markers (`ul` bullets, `ol` numbers)
- * and quote bars follow the container's `direction` property, which
- * `unicode-bidi: plaintext` on the inner text cannot change — on an LTR
- * page they would stay on the left edge. For chat-scoped `ul`, `ol`, and
- * `blockquote` the script therefore applies the full rule (first-strong
- * RTL, or RTL majority regardless of the opening character) and pins an
- * inline `direction: rtl` alongside `dir`. Blocks that do not qualify keep
- * the stylesheet default, and a stale pin is removed when the text no
- * longer qualifies. A MutationObserver reapplies the decision as streaming
- * text grows; it watches text and child mutations only, so attribute
- * writes never loop.
+ * Container direction: list markers (`ul` bullets, `ol` numbers) and quote
+ * bars follow the container's `direction` property, which `unicode-bidi:
+ * plaintext` on the inner text cannot change, so chat-scoped `ul`, `ol`,
+ * and `blockquote` receive the full rule (RTL when the text opens
+ * Persian, closes Persian, or holds an RTL majority) with an inline
+ * `direction: rtl`.
+ *
+ * Last-strong sentences: `README.md: دو بخش جدید …` opens with a Latin
+ * file label and its Latin tokens outnumber the Persian letters, but it
+ * closes Persian — a sentence ends in the language it was authored in, so
+ * text blocks and lists that open LTR yet close RTL are pinned RTL too.
+ *
+ * Inline runs: `=`, `-`, `,`, parentheses, and brackets are neutral
+ * characters that resolve against the surrounding paragraph, so an inline
+ * `code` span such as `newest=2026-10-07, age=3 روز` interleaves inside an
+ * RTL paragraph. Chat-scoped `code`, `kbd`, `samp`, `var`, and `a` instead
+ * take their own majority direction (ties fall back to first-strong) with
+ * an inline `unicode-bidi: isolate`, becoming one coherent island whose
+ * symbols stay where they were written. Code blocks (`pre` and `pre code`)
+ * are pinned to `dir="ltr"` so code structure never inherits an RTL
+ * direction from a pinned ancestor; Persian comments inside render as RTL
+ * runs within the LTR block.
+ *
+ * Blocks that do not qualify keep the stylesheet default, and a stale pin
+ * is removed when the text no longer qualifies. A MutationObserver
+ * reapplies every decision as streaming text grows; it watches text and
+ * child mutations only, so attribute writes never loop.
  */
 const BIDI_SCRIPT = `(function () {
   var blocks = '${BLOCKS}';
   var scope = '${SCOPE} ';
   var scoped = scope + blocks;
   var lists = scope + ' ul,' + scope + ' ol,' + scope + ' blockquote';
+  var inlines = scope + ' code,' + scope + ' kbd,' + scope + ' samp,' + scope + ' var,' + scope + ' a';
+  var pres = scope + ' pre,' + scope + ' pre code';
+  var all = scoped + ',' + lists + ',' + inlines + ',' + pres;
   var rtlChars = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g;
   var ltrChars = /[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/gu;
   var strongTest = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/u;
   var rtlTest = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+  var ltrTest = /[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}]/u;
   function firstStrongSide(text) {
     var index = text.search(strongTest);
     return index < 0 ? '' : rtlTest.test(text.charAt(index)) ? 'rtl' : 'ltr';
   }
+  function lastStrongSide(text) {
+    for (var i = text.length - 1; i >= 0; i--) {
+      var char = text.charAt(i);
+      if (rtlTest.test(char)) return 'rtl';
+      if (ltrTest.test(char)) return 'ltr';
+    }
+    return '';
+  }
+  function counts(text) {
+    return {
+      rtl: (text.match(rtlChars) || []).length,
+      ltr: (text.match(ltrChars) || []).length
+    };
+  }
   function forcesRtl(text, isContainer) {
-    var rtl = (text.match(rtlChars) || []).length;
-    if (!rtl) return false;
-    var ltr = (text.match(ltrChars) || []).length;
+    var count = counts(text);
+    if (!count.rtl) return false;
     var first = firstStrongSide(text);
-    return isContainer ? first === 'rtl' || rtl > ltr : rtl > ltr && first === 'ltr';
+    var last = lastStrongSide(text);
+    if (isContainer) return first === 'rtl' || count.rtl > count.ltr || last === 'rtl';
+    return first === 'ltr' && (count.rtl > count.ltr || last === 'rtl');
+  }
+  function majorityDir(text) {
+    var count = counts(text);
+    if (count.rtl === count.ltr) return firstStrongSide(text);
+    return count.rtl > count.ltr ? 'rtl' : 'ltr';
+  }
+  function directionFor(el) {
+    if (el.matches(pres)) return 'ltr';
+    var text = el.textContent || '';
+    if (el.matches(inlines)) return majorityDir(text);
+    if (el.matches(lists)) return forcesRtl(text, true) ? 'rtl' : '';
+    return forcesRtl(text, false) ? 'rtl' : '';
   }
   function apply(el) {
-    var pinned = el.getAttribute('dir') === 'rtl' && el.style.unicodeBidi === 'isolate';
-    if (forcesRtl(el.textContent || '', el.matches(lists))) {
-      el.setAttribute('dir', 'rtl');
+    var want = directionFor(el);
+    var ours = el.style.unicodeBidi === 'isolate' && (el.getAttribute('dir') === 'rtl' || el.getAttribute('dir') === 'ltr');
+    if (want) {
+      el.setAttribute('dir', want);
       el.style.unicodeBidi = 'isolate';
-      el.style.direction = 'rtl';
-    } else if (pinned) {
+      el.style.direction = want;
+    } else if (ours) {
       el.removeAttribute('dir');
       el.style.unicodeBidi = '';
       el.style.direction = '';
@@ -88,8 +134,8 @@ const BIDI_SCRIPT = `(function () {
   }
   function scan(node) {
     if (!node || node.nodeType !== 1) return;
-    if (node.matches(scoped) || node.matches(lists)) apply(node);
-    var list = node.querySelectorAll(scoped + ',' + lists);
+    if (node.matches(scoped) || node.matches(lists) || node.matches(inlines) || node.matches(pres)) apply(node);
+    var list = node.querySelectorAll(all);
     for (var i = 0; i < list.length; i++) apply(list[i]);
   }
   function scanText(textNode) {
@@ -115,10 +161,11 @@ const BIDI_SCRIPT = `(function () {
  * parser enters its pipeline), so a display fix must reach the page as
  * index content: on `webserver/index-inject` — the same event `ui-theme`
  * uses — this plugin appends a `style` row (first-strong default) and a
- * `script` row (RTL overrides for Latin-led Persian sentences and for list
- * and quote containers) that the webserver renders into index.html on every
- * page load. Message text itself stays untouched, so the durable session
- * log and model history remain byte-identical.
+ * `script` row (RTL overrides for Latin-led Persian sentences, list and
+ * quote containers, inline code isolation, and LTR code blocks) that the
+ * webserver renders into index.html on every page load. Message text itself
+ * stays untouched, so the durable session log and model history remain
+ * byte-identical.
  *
  * @param ctx - Cordis context that owns the listener effect.
  * @param config - loader-entry configuration; see {@link Config}.

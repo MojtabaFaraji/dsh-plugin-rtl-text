@@ -2,6 +2,20 @@
 
 Notable changes to this package are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0 - 2026-10-10
+
+### Added
+
+- Last-strong pinning: a text block or list that opens LTR yet closes with a Persian strong character (file-labeled bullets such as `README.md: دو بخش جدید …`) is pinned `dir="rtl"`, so the bullets stay on the right even when Latin tokens outnumber the Persian letters.
+- Inline-run isolation: chat-scoped `code`, `kbd`, `samp`, `var`, and `a` take their own majority direction with an inline `unicode-bidi: isolate`, so symbols such as `=`, `-`, `,`, `()`, and `[]` inside mixed code spans (for example `newest=2026-10-07, age=3 روز`) stay where they were written.
+- Code-block pinning: `pre` and `pre code` are pinned to `dir="ltr"` with isolation, so code structure never inherits an RTL direction from a pinned ancestor.
+
+## 0.1.1 - 2026-09-29
+
+### Fixed
+
+- README documentation, badges, and package metadata (`repository`, `homepage`, `bugs`) for the public GitHub repository.
+
 ## 0.1.0 - 2026-09-29
 
 ### Added

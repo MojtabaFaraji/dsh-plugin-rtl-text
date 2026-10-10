@@ -3,8 +3,20 @@ import { describe, it } from 'node:test';
 import { Context } from '@deepseek-ai/cordis';
 import { apply } from '../lib/index.js';
 
-/** A chat block stand-in the injected script can read and pin. */
-function fakeBlock(text) {
+/** Matchers mirroring the script's selector tiers. */
+const TIER_MATCHERS = {
+  list: (selector) => selector.includes(' ul,'),
+  inline: (selector) => selector.includes(' code,'),
+  pre: (selector) => selector.includes(' pre'),
+};
+
+/**
+ * A chat block stand-in the injected script can read and pin.
+ * @param {string} text - the block's textContent.
+ * @param {'list'|'inline'|'pre'} [tier] - which selector tier to match.
+ */
+function fakeBlock(text, tier) {
+  const matcher = tier ? TIER_MATCHERS[tier] : null;
   return {
     nodeType: 1,
     textContent: text,
@@ -13,27 +25,20 @@ function fakeBlock(text) {
     getAttribute(key) { return key in this.attrs ? this.attrs[key] : null; },
     setAttribute(key, value) { this.attrs[key] = value; },
     removeAttribute(key) { delete this.attrs[key]; },
-    matches() { return false; },
+    matches(selector) { return matcher ? matcher(selector) : false; },
     querySelectorAll() { return []; },
   };
-}
-
-/** A list/quote container stand-in: matches only the container selector. */
-function fakeContainer(text) {
-  const element = fakeBlock(text);
-  element.matches = (selector) => selector.includes(' ul,');
-  return element;
 }
 
 /**
  * Run the injected script against a minimal fake DOM.
  * @param {string} scriptText - the script row's text.
- * @param {string[]} texts - each block's textContent.
+ * @param {(string | { text: string, tier?: 'list'|'inline'|'pre' })[]} texts - blocks: a bare string is a plain text block.
  * @returns {{ elements: object[], run: () => void }} blocks and a re-run handle.
  */
 function scriptHarness(scriptText, texts) {
   const elements = texts.map((entry) =>
-    typeof entry === 'string' ? fakeBlock(entry) : fakeContainer(entry.text));
+    typeof entry === 'string' ? fakeBlock(entry) : fakeBlock(entry.text, entry.tier ?? 'list'));
   const run = () => {
     const previousDocument = globalThis.document;
     const previousObserver = globalThis.MutationObserver;
@@ -73,6 +78,14 @@ const ENGLISH_LED_PERSIAN = 'build سبز + ۴ تست پاس روی Context وا
 const PERSIAN_LED_LATIN_HEAVY = 'سطح رندر: تابع واقعی renderIndexInjections → style در <head>، script بعد از <body> — خروجی: OK render: style in head, script in body.';
 const PLAIN_ENGLISH = 'The quick brown fox jumps over the lazy dog.';
 const PLAIN_PERSIAN = 'سلام دنیا، این یک جمله‌ی ساده فارسی است.';
+// A code span mixing Latin assignments with a Persian word (reported).
+const CODE_MIXED = 'newest=2026-10-07, age=3 روز';
+const CODE_PERSIAN = 'کد test را در محیط فارسی اجرا کنید';
+const CODE_BLOCK = 'const age = 3; // روز جاری';
+// File-labeled Persian list items: Latin labels open and outnumber the
+// Persian letters, but the sentences close Persian (reported).
+const BULLET_README = 'README.md: دو بخش جدید در «What it fixes»، بخش جدید «Inline code, links, and code blocks» در How it works، اصلاح بخش Code blocks در «What it does not change»، و پوشش تست‌های جدید.';
+const BULLET_CHANGELOG = 'CHANGELOG.md: دو بند جدید در 0.1.0.';
 
 describe('dsh-plugin-rtl-text on a real Cordis context', () => {
   it('appends style and script rows when the webserver collects injections', async () => {
@@ -145,6 +158,49 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
     assert.equal(numberedList.style.unicodeBidi, 'isolate');
     assert.equal(quote.attrs.dir, 'rtl', 'quote containers move their bar to the right');
     assert.equal(englishList.attrs.dir, undefined, 'English lists stay on the left');
+  });
+
+  it('keeps file-labeled Persian lists RTL through the last-strong clause', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const harness = scriptHarness(scriptText, [
+      { text: BULLET_README + '\n' + BULLET_CHANGELOG, tier: 'list' },
+      { text: BULLET_README },
+      { text: BULLET_CHANGELOG },
+    ]);
+    harness.run();
+    const [list, readmeItem, changelogItem] = harness.elements;
+
+    assert.equal(list.attrs.dir, 'rtl', 'the list stays RTL so its bullets stay on the right');
+    assert.equal(readmeItem.attrs.dir, 'rtl', 'the item opens Latin but closes Persian');
+    assert.equal(changelogItem.attrs.dir, 'rtl', 'digits are not strong, so the last strong character is Persian');
+  });
+
+  it('isolates inline code with its own majority direction', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const harness = scriptHarness(scriptText, [
+      { text: CODE_MIXED, tier: 'inline' },
+      { text: CODE_PERSIAN, tier: 'inline' },
+    ]);
+    harness.run();
+    const [latinLed, persianLed] = harness.elements;
+
+    assert.equal(latinLed.attrs.dir, 'ltr', 'Latin-majority code stays a coherent LTR island');
+    assert.equal(latinLed.style.unicodeBidi, 'isolate', 'neutrals inside the span stop resolving against the paragraph');
+    assert.equal(latinLed.style.direction, 'ltr');
+    assert.equal(persianLed.attrs.dir, 'rtl', 'Persian-majority code takes RTL');
+  });
+
+  it('pins code blocks to LTR so they never inherit an RTL direction', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const harness = scriptHarness(scriptText, [{ text: CODE_BLOCK, tier: 'pre' }]);
+    harness.run();
+
+    assert.equal(harness.elements[0].attrs.dir, 'ltr');
+    assert.equal(harness.elements[0].style.unicodeBidi, 'isolate');
+    assert.equal(harness.elements[0].style.direction, 'ltr');
   });
 
   it('leaves the table untouched when the profile entry disables it', async () => {
