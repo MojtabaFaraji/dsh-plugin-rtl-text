@@ -37,6 +37,7 @@ When a reply mixes Persian or Arabic with English words, code, or numbers, an LT
 - Code blocks keep their structure: `pre` is pinned to LTR with isolation, so an RTL context can never scramble code — Persian comments inside render as RTL runs.
 - File-labeled Persian bullets (`README.md: دو بخش جدید …`): the Latin label opens and even outweighs the Persian letters, but the sentence closes Persian — the last-strong rule keeps the list RTL with its bullets on the right.
 - Digit-led Persian sentences (`۱. push به GitHub: …`): Arabic-Indic digits are weak in Unicode, so the script skips them exactly like the stylesheet — the sentence pins RTL through its Persian majority instead of starting LTR and scrambling.
+- Tables: one direction for the whole table — every cell inherits it, so mixed Persian/English columns stop disagreeing and the rows stay readable.
 - Existing history as well as live replies: the fix is one stylesheet row and one script, so every already-loaded conversation benefits immediately — no re-streaming.
 
 ## What it does not change
@@ -118,7 +119,7 @@ First-strong alone reads `build سبز + ۴ تست پاس` as LTR because it ope
 
 ### Container direction: list numbers, bullets, quote bars
 
-Markers follow the container's own `direction` property, which `unicode-bidi: plaintext` on the inner text cannot change — on an LTR page they would stay on the left edge. For chat-scoped `ul`, `ol`, and `blockquote` the script applies the full rule (RTL when the text opens Persian, closes Persian, or holds an RTL majority) and pins an inline `direction: rtl`, so a list opening `1. اولین مورد …` keeps its numbers on the right with the text. English lists stay left.
+Markers follow the container's own `direction` property, which `unicode-bidi: plaintext` on the inner text cannot change — on an LTR page they would stay on the left edge. For chat-scoped `ul`, `ol`, `blockquote`, and `table` the script applies the full rule (RTL when the text opens Persian, closes Persian, or holds an RTL majority) and pins an inline `direction: rtl`, so a list opening `1. اولین مورد …` keeps its numbers on the right with the text. English lists stay left. Tables join the same rule with one difference: `td` and `th` are not in the stylesheet's per-block list, because per-cell first-strong directions made mixed columns disagree — every cell inherits the table's single pinned direction instead.
 
 ### Inline code, links, and code blocks
 

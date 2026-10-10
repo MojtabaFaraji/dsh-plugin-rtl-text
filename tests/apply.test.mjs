@@ -89,6 +89,9 @@ const BULLET_CHANGELOG = 'CHANGELOG.md: دو بند جدید در 0.1.0.';
 // Arabic-Indic digits are weak in Unicode; the RTL ranges exclude them so
 // this digit-led Persian sentence pins RTL through the majority rule (reported).
 const DIGIT_LED = '۱. push به GitHub: تلاش من دو بار به‌دلیلِ عدم دسترسیِ sandbox به credential helper های git شکست خورد (و approval هم پاسخ نگرفت)، پس مخزن هنوز ahead 1 است:';
+const DIGIT_LED_NPM = '۲. publish به npm: احراز هویتِ npm در این محیط 401 است (مثل انتشارهای 0.1.0 و 0.1.1 که از ترمینال خودتان انجام شدند):';
+// A mixed table: one direction for the whole table, never per cell (reported).
+const MIXED_TABLE = 'key | کلید\nvalue | مقدار';
 
 describe('dsh-plugin-rtl-text on a real Cordis context', () => {
   it('appends style and script rows when the webserver collects injections', async () => {
@@ -166,10 +169,11 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
   it('treats Arabic-Indic digits as weak, so digit-led Persian pins RTL', async () => {
     const table = await collectedRows();
     const scriptText = table.find((row) => row.kind === 'script').text;
-    const harness = scriptHarness(scriptText, [DIGIT_LED]);
+    const harness = scriptHarness(scriptText, [DIGIT_LED, DIGIT_LED_NPM]);
     harness.run();
 
     assert.equal(harness.elements[0].attrs.dir, 'rtl', 'the leading ۱ is weak, so the first strong character is Latin and the RTL majority pins the block');
+    assert.equal(harness.elements[1].attrs.dir, 'rtl', 'the same holds for a ۲.-led sentence with ASCII version numbers');
     assert.equal(harness.elements[0].style.unicodeBidi, 'isolate');
   });
 
@@ -187,6 +191,18 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
     assert.equal(list.attrs.dir, 'rtl', 'the list stays RTL so its bullets stay on the right');
     assert.equal(readmeItem.attrs.dir, 'rtl', 'the item opens Latin but closes Persian');
     assert.equal(changelogItem.attrs.dir, 'rtl', 'digits are not strong, so the last strong character is Persian');
+  });
+
+  it('gives each table one direction that its cells inherit', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const styleText = table.find((row) => row.kind === 'style').text;
+    const harness = scriptHarness(scriptText, [{ text: MIXED_TABLE, tier: 'list' }]);
+    harness.run();
+
+    assert.ok(!styleText.includes('td'), 'cells stay out of the per-block stylesheet so columns cannot disagree');
+    assert.equal(harness.elements[0].attrs.dir, 'rtl', 'a Persian-majority table pins one direction for the whole table');
+    assert.equal(harness.elements[0].style.direction, 'rtl', 'cells inherit the direction property');
   });
 
   it('isolates inline code with its own majority direction', async () => {
