@@ -90,8 +90,10 @@ const BULLET_CHANGELOG = 'CHANGELOG.md: دو بند جدید در 0.1.0.';
 // this digit-led Persian sentence pins RTL through the majority rule (reported).
 const DIGIT_LED = '۱. push به GitHub: تلاش من دو بار به‌دلیلِ عدم دسترسیِ sandbox به credential helper های git شکست خورد (و approval هم پاسخ نگرفت)، پس مخزن هنوز ahead 1 است:';
 const DIGIT_LED_NPM = '۲. publish به npm: احراز هویتِ npm در این محیط 401 است (مثل انتشارهای 0.1.0 و 0.1.1 که از ترمینال خودتان انجام شدند):';
-// A mixed table: one direction for the whole table, never per cell (reported).
+// A mixed table: the table pins the column order; cells keep their own content direction (reported).
 const MIXED_TABLE = 'key | کلید\nvalue | مقدار';
+// Character counts tie 60/60; the Persian word majority (18 vs 9) decides (reported).
+const TIE_CHAR_PERSIAN = 'README.md: بند جدید در «What it fixes»، توضیحِ last-strong در بخشِ script، بازنویسیِ قانونِ کاملِ контейнер در بخشِ Container، و پوشش تست در Testing.';
 
 describe('dsh-plugin-rtl-text on a real Cordis context', () => {
   it('appends style and script rows when the webserver collects injections', async () => {
@@ -193,6 +195,15 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
     assert.equal(changelogItem.attrs.dir, 'rtl', 'digits are not strong, so the last strong character is Persian');
   });
 
+  it('breaks exact character ties by word majority', async () => {
+    const table = await collectedRows();
+    const scriptText = table.find((row) => row.kind === 'script').text;
+    const harness = scriptHarness(scriptText, [TIE_CHAR_PERSIAN]);
+    harness.run();
+
+    assert.equal(harness.elements[0].attrs.dir, 'rtl', 'the character counts tie, but Persian words outnumber the Latin ones');
+  });
+
   it('gives each table one direction that its cells inherit', async () => {
     const table = await collectedRows();
     const scriptText = table.find((row) => row.kind === 'script').text;
@@ -200,7 +211,7 @@ describe('dsh-plugin-rtl-text on a real Cordis context', () => {
     const harness = scriptHarness(scriptText, [{ text: MIXED_TABLE, tier: 'list' }]);
     harness.run();
 
-    assert.ok(!styleText.includes('td'), 'cells stay out of the per-block stylesheet so columns cannot disagree');
+    assert.ok(styleText.includes('td,th'), 'cells keep per-cell plaintext for their content while the table pins the column order');
     assert.equal(harness.elements[0].attrs.dir, 'rtl', 'a Persian-majority table pins one direction for the whole table');
     assert.equal(harness.elements[0].style.direction, 'rtl', 'cells inherit the direction property');
   });

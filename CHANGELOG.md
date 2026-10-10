@@ -2,6 +2,13 @@
 
 Notable changes to this package are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.2 - 2026-10-10
+
+### Fixed
+
+- Word-based majority: the RTL majority counts words, not characters — English phrases inside Persian prose are character-dense, so `README.md: بند جدید در «What it fixes» …`, which ties the character count 60/60, still pins RTL through its 18-to-9 Persian word majority.
+- Table column order: chat-scoped `table` pins one structural direction with the container rule so Persian tables keep their first column on the right; cells keep per-cell `unicode-bidi: plaintext`, so a Latin-heavy result cell stays readable inside the RTL table.
+
 ## 0.2.1 - 2026-10-10
 
 ### Fixed
