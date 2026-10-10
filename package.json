@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-rtl-text",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness plugin that fixes RTL/LTR bidi rendering in chat: per-block direction for Persian and Arabic messages with embedded English, plus list markers and quote bars that follow their text",
   "keywords": [
     "deepseek-harness",
